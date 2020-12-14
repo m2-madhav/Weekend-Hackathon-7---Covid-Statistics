@@ -26,16 +26,6 @@ app.get("/totalRecovered", (req, res) => {
 });
 
 app.get("/totalDeath", (req, res) => {
-  /*collection_connection.aggregate(
-      [
-          {
-              $group:{
-                  _id:"total",
-                  death:{$sum:"$death"}
-              }
-          }
-      ]
-  ).then((p)=>res.send(p));*/
   let deathCount = 0;
   data.map((item) => {
     deathCount += item.death;
@@ -50,20 +40,6 @@ app.get("/totalDeath", (req, res) => {
 });
 
 app.get("/totalActive", (req, res) => {
-  /* collection_connection.aggregate(
-      [
-          {
-              $group:{
-                  _id:"total",
-                  active:{
-                      $sum: {$subtract:["$infected","$recovered"]}
-                  }
-              }
-          }
-      ]
-  ).then((p)=>res.send(p));
-  */
-
   let totalActive = 0;
   data.map((item) => {
     totalActive += item.infected - item.recovered;
