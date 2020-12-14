@@ -2,94 +2,80 @@ const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
 const port = 8080;
-const roundTo = require("round-to");
+
 // Parse JSON bodies (as sent by API clients)
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 const { connection } = require("./connector");
-const { data } = require("./data");
+const data = require("./data");
+
+let ob = data;
+let recoveredPatients = 0;
+let totalActiveCases = 0;
+let totalDeaths = 0;
+let rateValue = [];
+let mortalityValue = [];
+
+for (let i = 0; i < ob.data.length; i++) {
+  recoveredPatients += ob.data[i].recovered;
+  totalActiveCases += ob.data[i].infected - ob.data[i].recovered;
+  totalDeaths += ob.data[i].death;
+  rateValue[i] = parseFloat(
+    (
+      (ob.data[i].infected - ob.data[i].recovered) /
+      ob.data[i].infected
+    ).toFixed(5)
+  );
+  mortalityValue[i] = parseFloat(
+    (ob.data[i].death / ob.data[i].infected).toFixed(5)
+  );
+}
+
 app.get("/totalRecovered", (req, res) => {
-  let recoveredCount = 0;
-  data.map((item) => {
-    recoveredCount += item.recovered;
-  });
-  res.send({
-    data: {
-      _id: "total",
-      recovered: recoveredCount
-    }
-  });
-  return;
+  let obj = { data: { _id: "total", recovered: recoveredPatients } };
+  res.send(obj);
 });
 
 app.get("/totalActive", (req, res) => {
-  let activeCount = 0;
-  data.map((item) => {
-    activeCount += item.infected - item.recovered;
-  });
-  res.send({
-    data: {
-      _id: "total",
-      active: activeCount
-    }
-  });
-  return;
+  let obj = { data: { _id: "total", active: totalActiveCases } };
+  res.send(obj);
 });
 
 app.get("/totalDeath", (req, res) => {
-  let deathCount = 0;
-  data.map((item) => {
-    deathCount += item.death;
-  });
-  res.send({
-    data: {
-      _id: "total",
-      death: deathCount
-    }
-  });
-  return;
+  let obj = { data: { _id: "total", death: totalDeaths } };
+  res.send(obj);
 });
+
+let hotspotStatesArr = [];
+for (let i = 0; i < ob.data.length; i++) {
+  if (rateValue[i] > 0.1) {
+    let newObj = {
+      state: ob.data[i].state,
+      rate: rateValue[i]
+    };
+    hotspotStatesArr.push(newObj);
+  }
+}
 
 app.get("/hotspotStates", (req, res) => {
-  let hotspotStates = [];
-  data.map((item) => {
-    let infected = item.infected;
-    let recovered = item.recovered;
-
-    if ((infected - recovered) / infected > 0.1) {
-      let obj = {};
-      obj.state = item.state;
-      obj.rate = roundTo((infected - recovered) / infected, 5);
-      hotspotStates.push(obj);
-    }
-  });
-  res.send({
-    data: hotspotStates.map((item) => {
-      return item;
-    })
-  });
-  return;
+  let obj = { data: hotspotStatesArr };
+  res.send(obj);
 });
 
-app.get("/healthyStates", (req, res) => {
-  let healthyStates = [];
-  data.map((item) => {
-    let infected = item.infected;
-    let death = item.death;
+let healthyStatesArr = [];
+for (let i = 0; i < ob.data.length; i++) {
+  if (mortalityValue[i] < 0.005) {
+    let newObj = {
+      state: ob.data[i].state,
+      mortality: mortalityValue[i]
+    };
+    healthyStatesArr.push(newObj);
+  }
+}
 
-    if (death / infected < 0.005) {
-      let obj = {};
-      obj.state = item.state;
-      obj.mortality = roundTo(death / infected, 5);
-      healthyStates.push(obj);
-    }
-  });
-  res.send({
-    data: healthyStates.map((item) => {
-      return item;
-    })
-  });
-  return;
+app.get("/healthyStates", (req, res) => {
+  let obj = { data: healthyStatesArr };
+  res.send(obj);
 });
 
 app.listen(port, () => console.log(`App listening on port ${port}!`));
